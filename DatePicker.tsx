@@ -10,7 +10,6 @@ import React from 'react'
 interface DatePickerProps {
   selectedDate: Date | undefined
   setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>
-  declarantId: string
 }
 
 /**
@@ -32,7 +31,7 @@ function frIsoRawDateToValidDate(dateString: string) {
   return new Date(date)
 }
 
-const DatePicker = ({ selectedDate, setSelectedDate, declarantId }: DatePickerProps) => {
+const DatePicker = ({ selectedDate, setSelectedDate }: DatePickerProps) => {
   const [stringDate, setStringDate] = React.useState<string>('')
   const [isOpen, setIsOpen] = React.useState(false)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -71,13 +70,6 @@ const DatePicker = ({ selectedDate, setSelectedDate, declarantId }: DatePickerPr
     }
   }
   return (
-    <>
-      <input
-        type="hidden"
-        name={`bday-${declarantId}`}
-        defaultValue={selectedDate?.getTime()}
-        readOnly
-      />
       <Popover onOpenChange={setIsOpen} open={isOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -116,7 +108,6 @@ const DatePicker = ({ selectedDate, setSelectedDate, declarantId }: DatePickerPr
           />
         </PopoverContent>
       </Popover>
-    </>
   )
 }
 
