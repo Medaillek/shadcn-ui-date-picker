@@ -40,18 +40,21 @@ const DatePicker = ({ selectedDate, setSelectedDate, declarantId }: DatePickerPr
     if (e.key === 'Enter' && stringDate.length === 8) {
       e.stopPropagation()
       e.preventDefault()
-      setIsOpen(false)
+      return setIsOpen(false)
     }
     if (e.key === 'Delete') {
       setStringDate('')
-      setSelectedDate(minDate)
+      return setSelectedDate(minDate)
     }
     if (e.key === 'Backspace') {
-      setStringDate((prev) => {
+      return setStringDate((prev) => {
         const sliced = prev.slice(0, -1)
         setSelectedDate(frIsoRawDateToValidDate(sliced))
         return prev.slice(0, -1)
       })
+    }
+    if (e.key === 'Escape') {
+      return setIsOpen(false)
     }
     const isKeyDigit = parseInt(e.key) >= 0 && parseInt(e.key) <= 9
     if (isKeyDigit) {
