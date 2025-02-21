@@ -1,114 +1,214 @@
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/src/utils/tw'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import { CalendarIcon } from 'lucide-react'
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn, dayToMs } from '@/lib/utils'
+import { CalendarIcon, X } from 'lucide-react'
 import React from 'react'
+import { FormControl } from './form'
 
-interface DatePickerProps {
-  selectedDate: Date | undefined
-  setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>
+type DatePickerProps = {
+	selectedDate: Date | undefined | null
+	setSelectedDate: (date: Date | undefined) => void
+	disabledBefore?: string | Date
+	disabledAfter?: string | Date
+	isForm?: boolean
+} & React.ComponentProps<typeof Button>
+
+// the date string is in french format : eg. 01/01/2022 or 01012022
+function completeDateFromString(date: string) {
+	let [day, month, year] = date.split(/[/]/g)
+
+	let finalDate = new Date()
+
+	if (day) {
+		let intDay = parseInt(day)
+		if (intDay > 31) {
+			day = '31'
+		} else if (intDay < 1) {
+			day = '01'
+		}
+		finalDate.setUTCDate(parseInt(day))
+	} else {
+		day = finalDate.getUTCDate().toString()
+	}
+
+	if (month) {
+		let intMonth = parseInt(month)
+		if (intMonth > 12) {
+			month = '12'
+		} else if (intMonth < 1) {
+			month = '01'
+		}
+		finalDate.setUTCMonth(parseInt(month) - 1)
+	} else {
+		month = (finalDate.getUTCMonth() + 1).toString()
+	}
+
+	if (year) {
+		let intYear = parseInt(year)
+		if (intYear > 9999) {
+			year = new Date().getUTCFullYear().toString()
+		} else if (intYear < 1) {
+			year = '0001'
+		}
+		finalDate.setUTCFullYear(parseInt(year))
+	} else {
+		year = finalDate.getUTCFullYear().toString()
+	}
+
+	return {
+		date: finalDate,
+		stringDate: `${day}/${month}/${year}`,
+	}
 }
 
-/**
- * @description Convert a date string from the french format without "/" to a valid date JJMMYYYY with missing values => new Date(YYYY-MM-DD)
- * @param dateString JJMMYYYY
- * @returns new Date(YYYY-MM-DD)
- */
-function frIsoRawDateToValidDate(dateString: string) {
-  const now = new Date()
-  const year = dateString.slice(4, 8)
-  const month = dateString.slice(2, 4)
-  const day = dateString.slice(0, 2)
-  const isValidYear = parseInt(year) <= now.getFullYear() && parseInt(year) > 1900
-  const isValidMonth = parseInt(month) <= 12 && parseInt(month) > 0
-  const isValidDay = parseInt(day) <= 31 && parseInt(day) > 0
-  const date = `${isValidYear ? year : now.getFullYear() - 18}-${
-    isValidMonth ? month : now.getMonth() + 1
-  }-${isValidDay ? day : now.getDate()}`
-  return new Date(date)
-}
+function DatePicker({
+	selectedDate,
+	setSelectedDate,
+	disabledBefore,
+	disabledAfter = new Date(),
+	isForm,
+	'data-tooltip-content': tooltipContent,
+	...props
+}: DatePickerProps) {
+	const Comp = isForm ? FormControl : React.Fragment
+	const [stringDate, setStringDate] = React.useState<string>('')
+	const [month, setMonth] = React.useState<Date>(selectedDate || new Date())
+	const [isOpen, setIsOpen] = React.useState(false)
 
-const DatePicker = ({ selectedDate, setSelectedDate }: DatePickerProps) => {
-  const [stringDate, setStringDate] = React.useState<string>('')
-  const [isOpen, setIsOpen] = React.useState(false)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const minDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 365 * 18)
-    if (e.key === 'Enter' && stringDate.length === 8) {
-      e.stopPropagation()
-      e.preventDefault()
-      return setIsOpen(false)
-    }
-    if (e.key === 'Delete') {
-      setStringDate('')
-      return setSelectedDate(minDate)
-    }
-    if (e.key === 'Backspace') {
-      return setStringDate((prev) => {
-        const sliced = prev.slice(0, -1)
-        setSelectedDate(frIsoRawDateToValidDate(sliced))
-        return prev.slice(0, -1)
-      })
-    }
-    if (e.key === 'Escape') {
-      return setIsOpen(false)
-    }
-    const isKeyDigit = parseInt(e.key) >= 0 && parseInt(e.key) <= 9
-    if (isKeyDigit) {
-      const toDigit = parseInt(e.key).toString()
-      setStringDate((prev) => {
-        if (prev.length === 8) {
-          setSelectedDate(minDate)
-          return ''
-        }
-        const newDate = `${prev}${toDigit}`
-        setSelectedDate(frIsoRawDateToValidDate(newDate))
-        return newDate
-      })
-    }
-  }
-  return (
-      <Popover onOpenChange={setIsOpen} open={isOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant={'outline'}
-            type="button"
-            className={cn(
-              'w-[240px] pl-3 text-left font-normal',
-              !selectedDate && 'text-muted-foreground',
-            )}
-          >
-            {selectedDate ? (
-              format(selectedDate, 'PPP', { locale: fr })
-            ) : (
-              <span>Séléctionner une date</span>
-            )}
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" onKeyDown={handleKeyDown}>
-          <Calendar
-            required
-            fromYear={new Date().getFullYear() - 100}
-            mode="single"
-            toDate={new Date(Date.now() - 1000 * 60 * 60 * 24 * 365 * 18)}
-            selected={selectedDate}
-            onSelect={(e) => {
-              setSelectedDate(e)
-              setStringDate('')
-            }}
-            captionLayout="dropdown-buttons"
-            disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-            fixedWeeks
-            defaultMonth={selectedDate}
-            month={selectedDate}
-            onMonthChange={setSelectedDate}
-          />
-        </PopoverContent>
-      </Popover>
-  )
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		const isDigitKey = e.key.match(/[0-9]/)
+		const isBackspaceKey = e.key === 'Backspace'
+		const isDeleteKey = e.key === 'Delete'
+
+		if (isDigitKey) {
+			e.preventDefault()
+			let newStr = stringDate + e.key
+			if (newStr.length === 2 || newStr.length === 5) {
+				newStr += '/'
+			}
+			const { date } = completeDateFromString(newStr)
+			setStringDate(newStr)
+			setMonth(date)
+
+			if (newStr.length === 10) {
+				setSelectedDate(date)
+			}
+		}
+
+		if (isBackspaceKey || isDeleteKey) {
+			e.preventDefault()
+
+			if (stringDate.length === 0) {
+				return
+			}
+
+			setStringDate((prev) => {
+				const newStr = prev.slice(0, -1)
+				const charRemoved = prev.slice(-1)
+				if (charRemoved === '/') {
+					return newStr.slice(0, -1)
+				}
+				return newStr
+			})
+
+			setSelectedDate(undefined)
+		}
+
+		if (e.key === 'Enter') {
+			const { date } = completeDateFromString(stringDate)
+			setSelectedDate(date)
+			setIsOpen(false)
+		}
+	}
+
+	return (
+		<Popover
+			modal={true}
+			onOpenChange={setIsOpen}
+			open={isOpen}
+		>
+			<div className="relative w-max">
+				<Comp>
+					<PopoverTrigger asChild>
+						<Button
+							{...props}
+							data-tooltip-content={tooltipContent ?? undefined}
+							variant={'outline'}
+							type="button"
+							onClick={() => {
+								setIsOpen((prev) => !prev)
+							}}
+							className={cn(
+								'w-[140px] pl-3 text-left font-normal group justify-between focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+								!selectedDate && 'text-muted-foreground',
+								isOpen && 'ring-ring ring-2 ring-offset-2'
+							)}
+						>
+							{stringDate.length > 0 && stringDate.length < 10 ? (
+								<span className="tabular-nums">{stringDate}</span>
+							) : selectedDate ? (
+								<span className="tabular-nums">
+									{selectedDate.toLocaleDateString('fr-fr')}
+								</span>
+							) : (
+								<span className="tabular-nums">--/--/----</span>
+							)}
+
+							<CalendarIcon className="w-4 h-4 ml-auto opacity-50" />
+						</Button>
+					</PopoverTrigger>
+				</Comp>
+				{selectedDate && (
+					<Button
+						className="absolute w-6 h-6 p-0 transition-opacity -translate-y-1/2 top-1/2 right-3"
+						variant={'destructive'}
+						data-tooltip-content={'Supprimer la date'}
+						type="button"
+						onClick={() => {
+							setSelectedDate(undefined)
+							setStringDate('')
+						}}
+					>
+						<X size={12} />
+					</Button>
+				)}
+			</div>
+			<PopoverContent
+				className="w-auto p-0"
+				align="start"
+				onKeyDown={handleKeyDown}
+			>
+				<Calendar
+					required
+					mode="single"
+					selected={selectedDate ?? month ?? new Date()}
+					onSelect={(e) => {
+						setSelectedDate(e)
+						setStringDate(e.toLocaleDateString('fr-fr'))
+						setIsOpen(false)
+					}}
+					captionLayout="dropdown"
+					startMonth={new Date(disabledBefore || '1900-01-01')}
+					endMonth={new Date(disabledAfter)}
+					disabled={(date) =>
+						date < new Date(disabledBefore || '1900-01-01') ||
+						date > new Date(disabledAfter)
+					}
+					fixedWeeks
+					showOutsideDays
+					defaultMonth={selectedDate ?? month ?? new Date()}
+					month={month}
+					autoFocus
+					onMonthChange={setMonth}
+				/>
+			</PopoverContent>
+		</Popover>
+	)
 }
 
 export default DatePicker
